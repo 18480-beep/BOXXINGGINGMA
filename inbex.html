@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CareBox · Device Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-950:#0b1326;
+    --navy-900:#101b35;
+    --navy-800:#152348;
+    --ink-900:#10131c;
+    --ink-700:#3a4054;
+    --ink-500:#6b7184;
+    --ink-300:#a3a8b8;
+    --ink-200:#cfd2dc;
+    --ink-100:#e7e9f0;
+    --paper:#f4f5f9;
+    --white:#ffffff;
+    --green-500:#2fb670;
+    --green-600:#239359;
+    --teal-400:#39c2b8;
+    --red-500:#e2483b;
+    --red-600:#c63a2f;
+    --amber-400:#f0a93e;
+    font-family:'IBM Plex Sans Thai',sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'IBM Plex Sans Thai',sans-serif;
+    background:var(--paper);
+    color:var(--ink-900);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .page-head{
+    text-align:center;
+    padding:26px 16px 6px;
+  }
+  .page-head h1{ font-size:19px; font-weight:700; }
+  .page-head p{ font-size:12.5px; color:var(--ink-500); margin-top:4px; }
+
+  .stage{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-start;
+    justify-content:center;
+    gap:22px;
+    padding:18px 14px 50px;
+  }
+
+  .device-col{
+    display:flex; flex-direction:column; align-items:center;
+    width:300px;
+    flex-shrink:0;
+  }
+  .device-label{
+    font-size:12px; font-weight:700;
+    color:var(--ink-500);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    margin-bottom:10px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .device-label .dot{ width:7px; height:7px; border-radius:50%; background:var(--ink-300); }
+  .device-label .dot.live{ background:var(--green-500); box-shadow:0 0 0 3px rgba(47,182,112,.2); }
+
+  /* ============ PHYSICAL BOX ============ */
+  .box-shell{
+    width:300px;
+    background:linear-gradient(160deg, #232733, #14161c);
+    border-radius:22px;
+    padding:18px 18px 20px;
+    box-shadow:0 18px 40px rgba(16,19,28,.28);
+  }
+  .box-lid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:6px;
+    margin-bottom:10px;
+  }
+  .box-slot{
+    aspect-ratio:1;
+    background:linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.015));
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:9px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    position:relative;
+    color:rgba(255,255,255,.55);
+    font-weight:700;
+    font-size:15px;
+    transition:all .25s;
+    cursor:pointer;
+  }
+  .box-slot .tap-hint{
+    position:absolute; bottom:3px; font-size:6.5px; font-weight:700;
+    letter-spacing:.03em; color:rgba(255,255,255,.9);
+    opacity:0; transition:opacity .2s; pointer-events:none;
+  }
+  .box-slot.ringing .tap-hint{ opacity:1; animation:tapBlink 1s infinite; }
+  @keyframes tapBlink{ 0%,100%{opacity:.35;} 50%{opacity:1;} }
+  .box-slot .led{
+    width:6px; height:6px; border-radius:50%;
+    background:#1c3a2c;
+    margin-top:4px;
+    transition:all .2s;
+  }
+  .box-slot.active{
+    border-color:rgba(47,182,112,.5);
+    background:linear-gradient(160deg, rgba(47,182,112,.18), rgba(47,182,112,.04));
+  }
+  .box-slot.active .led{ background:var(--green-500); box-shadow:0 0 6px var(--green-500); }
+  .box-slot.ringing{
+    border-color:rgba(240,169,62,.7);
+    background:linear-gradient(160deg, rgba(240,169,62,.28), rgba(240,169,62,.06));
+    animation:slotPulse 0.6s infinite;
+  }
+  .box-slot.ringing .led{ background:var(--amber-400); box-shadow:0 0 10px var(--amber-400); }
+  @keyframes slotPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(240,169,62,.5); }
+    50%{ box-shadow:0 0 0 6px rgba(240,169,62,0); }
+  }
+
+  .box-base{
+    background:linear-gradient(160deg, #1a1d26, #0d0f15);
+    border-radius:14px;
+    padding:12px 14px;
+    margin-top:4px;
+  }
+  .box-led-row{ display:flex; justify-content:space-between; padding:0 2px 10px; }
+  .box-led-row .led-num{ display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .box-led-row .led-num span{ font-size:8px; color:rgba(255,255,255,.35); }
+  .box-led-row .led-num .led{ width:5px; height:5px; border-radius:50%; background:#1c3a2c; }
+  .box-led-row .led-num .led.on{ background:var(--green-500); box-shadow:0 0 5px var(--green-500); }
+
+  .box-btn-row{ display:flex; justify-content:space-around; align-items:flex-end; padding-top:6px; }
+  .box-btn{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    background:none; border:none; cursor:pointer;
+  }
+  .box-btn .circle{
+    width:46px; height:46px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:17px;
+    background:linear-gradient(160deg, #3a3f4c, #23262f);
+    border:1px solid rgba(255,255,255,.12);
+    color:#fff;
+  }
+  .box-btn .cap{ font-size:9.5px; color:rgba(255,255,255,.45); font-weight:600; }
+  .box-btn.sos .circle{
+    background:radial-gradient(circle at 35% 30%, #ff6a57, var(--red-600));
+    border:none;
+    font-weight:800;
+    font-size:12px;
+    color:#fff;
+    user-select:none;
+  }
+  .box-btn.sos .circle.holding{
+    box-shadow:0 0 0 0 rgba(226,72,59,.6);
+    animation:holdPulse 0.5s infinite;
+  }
+  @keyframes holdPulse{
+    0%{ box-shadow:0 0 0 0 rgba(226,72,59,.55);}
+    100%{ box-shadow:0 0 0 14px rgba(226,72,59,0);}
+  }
+  .box-btn.sos.flow-active .circle{
+    animation:sosAmbient 1.4s ease-in-out infinite;
+  }
+  @keyframes sosAmbient{
+    0%,100%{ box-shadow:0 0 0 0 rgba(226,72,59,.55); }
+    50%{ box-shadow:0 0 0 8px rgba(226,72,59,.16); }
+  }
+  .box-btn.sos.flow-active .cap{ color:var(--red-500); font-weight:700; }
+
+  .box-speech{
+    margin-top:14px;
+    background:rgba(57,194,184,.08);
+    border:1px solid rgba(57,194,184,.25);
+    border-radius:12px;
+    padding:11px 13px;
+    min-height:40px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .box-speech .ic{ font-size:16px; flex-shrink:0; }
+  .box-speech .txt{ font-size:11.5px; color:rgba(255,255,255,.75); line-height:1.5; }
+  .box-speech .txt.idle{ color:rgba(255,255,255,.3); }
+
+  .box-hold-bar{
+    margin-top:10px;
+    height:5px;
+    border-radius:5px;
+    background:rgba(255,255,255,.08);
+    overflow:hidden;
+  }
+  .box-hold-fill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--red-500), #ff8a7a);
+    border-radius:5px;
+    transition:width .05s linear;
+  }
+
+  .box-countdown-banner{
+    margin-top:10px;
+    background:var(--red-500);
+    border-radius:12px;
+    padding:11px 13px;
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .box-countdown-banner.show{ display:flex; }
+  .box-countdown-banner .txt{ font-size:11.5px; color:#fff; font-weight:600; line-height:1.4; }
+  .box-countdown-banner .txt .hint{ display:block; font-size:9.5px; font-weight:500; opacity:.85; margin-top:3px; }
+  .box-countdown-banner .num{ font-size:22px; font-weight:800; color:#fff; }
+
+  .slot-quickbar{ display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; justify-content:center; }
+  .slot-quick-btn{
+    font-size:10px; font-weight:600;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.12);
+    color:rgba(255,255,255,.6);
+    border-radius:8px;
+    padding:6px 9px;
+    cursor:pointer;
+  }
+  .slot-quick-btn:hover{ background:rgba(255,255,255,.13); }
+
+  /* ============ AUDIO REMINDER CONFIG (helper card) ============ */
+  .audio-cfg{ margin-top:16px; padding-top:14px; border-top:1px solid var(--ink-100); }
+  .audio-cfg h4{ font-size:12.5px; font-weight:700; margin-bottom:6px; }
+  .audio-cfg-desc{ font-size:10.5px; color:var(--ink-500); line-height:1.55; margin-bottom:8px; }
+  .audio-cfg-desc code{
+    background:var(--ink-100); padding:1px 5px; border-radius:5px;
+    font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--ink-900);
+  }
+  .audio-cfg-note{ font-size:9.5px; color:var(--ink-300); margin-top:2px; line-height:1.45; }
+
+  /* ============ PHONE FRAME (shared) ============ */
+  .phone{
+    width:260px;
+    height:540px;
+    background:var(--ink-900);
+    border-radius:34px;
+    padding:9px;
+    box-shadow:0 14px 32px rgba(16,19,28,.22);
+    position:relative;
+  }
+  .phone-screen{
+    width:100%; height:100%;
+    background:var(--paper);
+    border-radius:26px;
+    overflow:hidden;
+    position:relative;
+    display:flex; flex-direction:column;
+  }
+  .p-notch{
+    position:absolute; top:8px; left:50%; transform:translateX(-50%);
+    width:80px; height:16px; background:var(--ink-900); border-radius:10px; z-index:50;
+  }
+  .p-statusbar{
+    height:32px; flex-shrink:0;
+    display:flex; align-items:flex-end; justify-content:space-between;
+    padding:5px 18px; font-size:10.5px; font-weight:600;
+    position:relative; z-index:5;
+  }
+  .p-statusbar.on-dark{ color:#fff; }
+  .p-body{ flex:1; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+
+  /* idle home screen for both phones */
+  .idle-home{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(165deg, #eef1fb, var(--paper) 60%);
+    text-align:center;
+    padding:0 24px;
+  }
+  .idle-clock{ font-size:40px; font-weight:300; letter-spacing:-1px; }
+  .idle-date{ font-size:11.5px; color:var(--ink-500); margin-top:4px; }
+  .idle-app-icon{
+    margin-top:30px;
+    width:54px; height:54px; border-radius:16px;
+    background:linear-gradient(135deg, var(--teal-400), #4d72f0);
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; color:#fff;
+  }
+  .idle-app-name{ font-size:11px; color:var(--ink-500); margin-top:8px; font-weight:600; }
+  .idle-role-tag{
+    margin-top:18px;
+    font-size:10.5px; font-weight:700;
+    color:var(--ink-300);
+    background:var(--white);
+    padding:6px 13px;
+    border-radius:20px;
+    border:1px solid var(--ink-100);
+  }
+
+  /* incoming/outgoing call screen */
+  .call-screen{
+    position:absolute; inset:0;
+    background:linear-gradient(165deg, #1c2740, #0d1424);
+    color:#fff;
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    z-index:20;
+    padding-top:50px;
+  }
+  .call-screen.show{ display:flex; }
+  .call-kind{ font-size:11.5px; color:rgba(255,255,255,.5); font-weight:600; }
+  .call-avatar{
+    width:96px; height:96px; border-radius:50%;
+    background:linear-gradient(135deg, #4d72f0, var(--teal-400));
+    display:flex; align-items:center; justify-content:center;
+    font-size:36px; font-weight:700;
+    margin-top:18px;
+  }
+  .call-name{ font-size:19px; font-weight:700; margin-top:16px; }
+  .call-sub{ font-size:12.5px; color:rgba(255,255,255,.55); margin-top:4px; }
+  .call-ringing-dots{ display:flex; gap:5px; margin-top:6px; }
+  .call-ringing-dots span{ width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,.5); animation:ringDot 1.2s infinite; }
+  .call-ringing-dots span:nth-child(2){ animation-delay:.15s; }
+  .call-ringing-dots span:nth-child(3){ animation-delay:.3s; }
+  @keyframes ringDot{ 0%,60%,100%{ opacity:.3; } 30%{ opacity:1; } }
+
+  .call-actions{
+    margin-top:auto;
+    margin-bottom:42px;
+    display:flex;
+    gap:50px;
+  }
+  .call-action-btn{
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    background:none; border:none; color:#fff; cursor:pointer;
+  }
+  .call-action-btn .circ{
+    width:58px; height:58px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+  }
+  .call-action-btn.decline .circ{ background:var(--red-500); }
+  .call-action-btn.accept .circ{ background:var(--green-500); }
+  .call-action-btn .cap{ font-size:10.5px; color:rgba(255,255,255,.7); }
+
+  /* emergency outgoing (1669) */
+  .call-emergency .call-avatar{ background:linear-gradient(135deg, var(--red-500), var(--red-600)); }
+  .call-emergency-badge{
+    margin-top:14px;
+    background:rgba(226,72,59,.18);
+    border:1px solid rgba(226,72,59,.4);
+    color:#ff9b8e;
+    font-size:10.5px; font-weight:700;
+    padding:5px 12px; border-radius:20px;
+  }
+
+  /* connected call (after accept) state */
+  .call-connected-bar{
+    margin-top:10px;
+    font-size:11px; color:var(--teal-400); font-weight:600;
+  }
+
+  /* notification banner (drops onto idle home) */
+  .notif-banner{
+    position:absolute; top:34px; left:10px; right:10px;
+    background:rgba(16,19,28,.92);
+    color:#fff;
+    border-radius:16px;
+    padding:11px 13px;
+    display:flex; gap:10px; align-items:flex-start;
+    z-index:25;
+    opacity:0; transform:translateY(-16px);
+    transition:all .3s ease;
+    pointer-events:none;
+  }
+  .notif-banner.show{ opacity:1; transform:translateY(0); }
+  .notif-banner .ic{ font-size:18px; flex-shrink:0; }
+  .notif-banner .nt-title{ font-size:11.5px; font-weight:700; }
+  .notif-banner .nt-body{ font-size:10.5px; color:rgba(255,255,255,.7); margin-top:1px; line-height:1.4; }
+
+  /* helper note panel */
+  .helper-note{
+    width:300px;
+    background:var(--white);
+    border-radius:20px;
+    box-shadow:0 1px 2px rgba(16,19,28,.04), 0 8px 24px rgba(16,19,28,.06);
+    padding:20px;
+    flex-shrink:0;
+  }
+  .helper-note h3{ font-size:14.5px; font-weight:700; margin-bottom:10px; }
+  .flow-step{ display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--ink-100); align-items:flex-start; }
+  .flow-step:last-child{ border-bottom:none; }
+  .flow-step .fnum{
+    width:20px; height:20px; border-radius:50%;
+    background:var(--ink-100); color:var(--ink-700);
+    font-size:10.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; margin-top:1px;
+  }
+  .flow-step.done .fnum{ background:var(--green-500); color:#fff; }
+  .flow-step .ftxt{ font-size:11.5px; line-height:1.5; color:var(--ink-700); }
+  .reset-btn{
+    margin-top:14px; width:100%;
+    background:var(--ink-100); border:none; border-radius:10px;
+    padding:10px; font-size:12px; font-weight:700; color:var(--ink-700);
+    cursor:pointer;
+  }
+
+  @media (max-width: 980px){
+    .helper-note{ order:-1; width:100%; max-width:620px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>CareBox · Live Demo Simulator</h1>
+  <p>กล่องยาจำลอง + มือถือผู้ป่วย + มือถือผู้ดูแล — กดปุ่มจริงเพื่อทดสอบ flow ทั้งหมด</p>
+</div>
+
+<div class="stage">
+
+  <!-- ============ HELPER / FLOW NOTES ============ -->
+  <div class="helper-note">
+    <h3>ลำดับขั้นที่จำลองได้</h3>
+    <div class="flow-step" id="fstep-0"><div class="fnum">•</div><div class="ftxt"><b>เสียงเตือนเวลายา</b> — กดปุ่ม "ช่อง 1 / 4 / 6" ด้านล่างกล่อง จะวนเล่นไฟล์เสียงที่ตั้งไว้ (หรือเสียงบี๊พถ้ายังไม่ตั้ง) จนกว่าจะแตะที่ช่องนั้นบนกล่องเพื่อจำลองเปิดฝา</div></div>
+    <div class="flow-step" id="fstep-1"><div class="fnum">1</div><div class="ftxt">กดปุ่ม <b>SOS</b> ที่กล่องค้างไว้ ~3 วิ</div></div>
+    <div class="flow-step" id="fstep-2"><div class="fnum">2</div><div class="ftxt">นับถอยหลัง 8 วิ (กดปุ่ม <b>SOS</b> ค้างอีกครั้งเพื่อยกเลิกได้ในช่วงนี้)</div></div>
+    <div class="flow-step" id="fstep-3"><div class="fnum">3</div><div class="ftxt">โทรหาผู้ดูแล เครื่องที่ 1 → ไม่รับ (2 วิ)</div></div>
+    <div class="flow-step" id="fstep-4"><div class="fnum">4</div><div class="ftxt">โทรหาผู้ดูแล เครื่องที่ 2 → ไม่รับ (2 วิ)</div></div>
+    <div class="flow-step" id="fstep-5"><div class="fnum">5</div><div class="ftxt">วนซ้ำเครื่อง 1 → เครื่อง 2 อีกรอบ (ครบ 2 รอบ)</div></div>
+    <div class="flow-step" id="fstep-6"><div class="fnum">6</div><div class="ftxt">ไม่มีใครรับ → มือถือผู้ป่วยโอนสายไป <b>1669</b> ทันที</div></div>
+    <button class="reset-btn" onclick="resetAll()">↺ รีเซ็ตการจำลองทั้งหมด</button>
+
+    <div class="audio-cfg">
+      <h4>🔊 เสียงแจ้งเตือนกินยา</h4>
+      <p class="audio-cfg-desc">ลิงก์ไฟล์เสียง (.mp3 / .mp4) ของแต่ละช่องถูกใส่ไว้ใน<b>โค้ด</b>โดยตรง (ตัวแปร <code>slotAudioUrls</code> ด้านล่างของไฟล์ index.html) ไม่ต้องมากรอกในหน้านี้ — แก้ลิงก์ตรงโค้ดแล้วรีโหลดหน้าได้เลย</p>
+      <p class="audio-cfg-note">ตอนนี้ตัวอย่างไว้ 3 ช่อง (1, 4, 6) ถ้ายังไม่ตั้งลิงก์ ระบบจะเล่นเสียงบี๊พแทนไปก่อนชั่วคราว</p>
+    </div>
+  </div>
+
+  <!-- ============ COLUMN 1: PHYSICAL BOX ============ -->
+  <div class="device-col">
+    <div class="device-label"><span class="dot live"></span>กล่องยา CareBox</div>
+    <div class="box-shell">
+      <div class="box-lid" id="boxLid">
+        <div class="box-slot" data-slot="1" onclick="openLid(1)" title="แตะเพื่อจำลองเปิดฝา"><span>1</span><div class="led"></div><div class="tap-hint">แตะ</div></div>
+        <div class="box-slot" data-slot="2" onclick="openLid(2)" title="แตะเพื่อจำลองเปิดฝา"><span>2</span><div class="led"></div><div class="tap-hint">แตะ</div></div>
+        <div class="box-slot" data-slot="3" onclick="openLid(3)" title="แตะเพื่อจำลองเปิดฝา"><span>3</span><div class="led"></div><div class="tap-hint">แตะ</div></div>
+        <div class="box-slot" data-slot="4" onclick="openLid(4)" title="แตะเพื่อจำลองเปิดฝา"><span>4</span><div class="led"></div><div class="tap-hint">แตะ</div></div>
+        <div class="box-slot" data-slot="5" onclick="openLid(5)" title="แตะเพื่อจำลองเปิดฝา"><span>5</span><div class="led"></div><div class="tap-hint">แตะ</div></div>
+        <div class="box-slot" data-slot="6" onclick="openLid(6)" title="แตะเพื่อจำลองเปิดฝา"><span>6</span><div class="led"></div><div class="tap-hint">แตะ</div></div>
+        <div class="box-slot" data-slot="7" onclick="openLid(7)" title="แตะเพื่อจำลองเปิดฝา"><span>7</span><div class="led"></div><div class="tap-hint">แตะ</div></div>
+        <div class="box-slot" data-slot="8" onclick="openLid(8)" title="แตะเพื่อจำลองเปิดฝา"><span>8</span><div class="led"></div><div class="tap-hint">แตะ</div></div>
+      </div>
+
+      <div class="box-base">
+        <div class="box-led-row" id="boxLedRow"></div>
+
+        <div class="box-speech">
+          <div class="ic">🔊</div>
+          <div class="txt idle" id="boxSpeechTxt">พร้อมทำงาน — ลองกดปุ่ม "ช่อง 1" ด้านล่างเพื่อจำลองเวลาทานยา</div>
+        </div>
+
+        <div class="box-hold-bar"><div class="box-hold-fill" id="boxHoldFill"></div></div>
+
+        <div class="box-countdown-banner" id="boxCountdownBanner">
+          <div class="txt">ระบบกำลังจะโทรหา<br>ผู้ดูแล…<span class="hint">กดปุ่ม SOS ค้างเพื่อยกเลิก</span></div>
+          <div class="num" id="boxCountdownNum">8</div>
+        </div>
+
+        <div class="box-btn-row">
+          <button class="box-btn" onclick="speakBoxMessage('เปิดเมนูตั้งค่ากล่องยา')">
+            <div class="circle">⚙️</div><div class="cap">ตั้งค่า</div>
+          </button>
+          <button class="box-btn" onclick="testReminder()">
+            <div class="circle">🔔</div><div class="cap">แจ้งเตือน</div>
+          </button>
+          <button class="box-btn sos" id="sosBtn">
+            <div class="circle" id="sosCircle">SOS</div><div class="cap" id="sosCap">ฉุกเฉิน</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="slot-quickbar">
+        <button class="slot-quick-btn" onclick="triggerSlotReminder(1)">ช่อง 1 ถึงเวลายา</button>
+        <button class="slot-quick-btn" onclick="triggerSlotReminder(4)">ช่อง 4 ถึงเวลายา</button>
+        <button class="slot-quick-btn" onclick="triggerSlotReminder(6)">ช่อง 6 ถึงเวลายา</button>
+        <button class="slot-quick-btn" onclick="stopReminder()">หยุดเสียง</button>
+      <audio id="reminderAudioEl" preload="none"></audio>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COLUMN 2: PATIENT PHONE ============ -->
+  <div class="device-col">
+    <div class="device-label"><span class="dot live"></span>มือถือผู้ป่วย</div>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="p-notch"></div>
+        <div class="p-statusbar"><span>9:41</span><span>📶 🔋</span></div>
+        <div class="p-body">
+          <div class="idle-home">
+            <div class="idle-clock">09:41</div>
+            <div class="idle-date">วันเสาร์ที่ 21 มิถุนายน</div>
+            <div class="idle-app-icon">💊</div>
+            <div class="idle-app-name">Medsy · CareBox</div>
+            <div class="idle-role-tag">📱 โทรศัพท์ผู้ป่วย — นายสมชาย</div>
+          </div>
+
+          <div class="notif-banner" id="patientNotifBanner">
+            <div class="ic">🔔</div>
+            <div><div class="nt-title">CareBox</div><div class="nt-body" id="patientNotifText">ได้เวลาทานยาช่องที่ 1 แล้วครับ</div></div>
+          </div>
+
+          <!-- outgoing emergency call screen -->
+          <div class="call-screen call-emergency" id="patientEmergencyCall">
+            <div class="call-kind">กำลังโทรออกอัตโนมัติ</div>
+            <div class="call-avatar">🚑</div>
+            <div class="call-name">หน่วยฉุกเฉิน 1669</div>
+            <div class="call-sub">โอนสายอัตโนมัติจาก CareBox</div>
+            <div class="call-emergency-badge">ไม่มีผู้ดูแลรับสาย — ติดต่อฉุกเฉิน</div>
+            <div class="call-connected-bar" id="patientCallTimer" style="display:none;">กำลังเชื่อมต่อสาย…</div>
+            <div class="call-actions">
+              <button class="call-action-btn decline" onclick="hidePatientCall()">
+                <div class="circ">📞</div><div class="cap">วางสาย</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COLUMN 3: CAREGIVER PHONE ============ -->
+  <div class="device-col">
+    <div class="device-label"><span class="dot live"></span>มือถือผู้ดูแล (เครื่อง <span id="caregiverDeviceNum">1</span>)</div>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="p-notch"></div>
+        <div class="p-statusbar"><span>9:41</span><span>📶 🔋</span></div>
+        <div class="p-body">
+          <div class="idle-home">
+            <div class="idle-clock">09:41</div>
+            <div class="idle-date">วันเสาร์ที่ 21 มิถุนายน</div>
+            <div class="idle-app-icon" style="background:linear-gradient(135deg,#4d72f0,#39c2b8);">👨‍👩‍👧</div>
+            <div class="idle-app-name">Medsy · CareBox</div>
+            <div class="idle-role-tag" id="caregiverRoleTag">📱 โทรศัพท์ผู้ดูแล — คุณสมหญิง (เครื่อง 1)</div>
+          </div>
+
+          <!-- incoming call screen -->
+          <div class="call-screen" id="caregiverIncomingCall">
+            <div class="call-kind" id="caregiverCallKind">สายเรียกเข้า — CareBox SOS</div>
+            <div class="call-avatar">🆘</div>
+            <div class="call-name" id="caregiverCallerName">CareBox — นายสมชาย</div>
+            <div class="call-sub">ฉุกเฉิน · กดปุ่ม SOS ที่กล่องยา</div>
+            <div class="call-ringing-dots" id="caregiverRingingDots"><span></span><span></span><span></span></div>
+            <div class="call-connected-bar" id="caregiverConnectedBar" style="display:none;">📞 สายเชื่อมต่อแล้ว — กำลังคุยกับผู้ป่วย</div>
+            <div class="call-actions" id="caregiverCallActions">
+              <button class="call-action-btn decline" onclick="caregiverDecline()">
+                <div class="circ">✕</div><div class="cap">ปฏิเสธ</div>
+              </button>
+              <button class="call-action-btn accept" onclick="caregiverAccept()">
+                <div class="circ">📞</div><div class="cap">รับสาย</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ===================== Speech helper (used for SOS / settings only) ===================== */
+function speakText(text){
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'th-TH';
+    u.rate = 0.95;
+    window.speechSynthesis.speak(u);
+  }catch(e){ /* speech not supported, fail silently */ }
+}
+
+/* ===================== Box: medication reminder (audio link from code, loops until lid opens) ===================== */
+const slotNames = {1:'Amlodipine ช่องที่ 1', 4:'Aspirin ช่องที่ 4', 6:'Metformin ช่องที่ 6'};
+
+/* ▼▼▼ แก้ลิงก์ไฟล์เสียงของจริงตรงนี้เลย (วางลิงก์ตรงไปไฟล์ .mp3 / .mp4 ที่เปิดได้จริงบนเว็บ) ▼▼▼
+   ไม่ต้องไปกรอกที่หน้าเว็บ — แก้ในโค้ดตรงนี้แล้ว save + รีโหลดหน้าได้เลย
+   ช่องไหนยังไม่ใส่ลิงก์ (เป็น '') ระบบจะเล่นเสียงบี๊พแทนไปก่อนชั่วคราว                              */
+const slotAudioUrls = {
+  1: 'https://files.catbox.moe/fhqs9r.mp3',   // 👈 ใส่ลิงก์เสียงช่องที่ 1 ตรงนี้ เช่น 1: 'https://yourdomain.com/sounds/dose1.mp3',
+  4: '',   // 👈 ใส่ลิงก์เสียงช่องที่ 4 ตรงนี้
+  6: '',   // 👈 ใส่ลิงก์เสียงช่องที่ 6 ตรงนี้
+  // จะเพิ่ม key 2,3,5,7,8 ในรูปแบบเดียวกันนี้ก็ได้ ถ้าต้องการครบทุกช่อง
+};
+/* ▲▲▲ แก้แค่ตรงนี้พอ ส่วนโค้ดด้านล่างไม่ต้องแก้ ▲▲▲ */
+
+let reminderTimer = null;   // ใช้สำหรับลิงก์เสียงที่อัปโหลด (เผื่อไฟล์เล่นซ้ำเองไม่ครบ จะ trigger ซ้ำให้)
+let chimeTimer = null;      // ใช้สำหรับเสียงบี๊พสำรองตอนยังไม่มีลิงก์
+let reminderSlot = null;
+const reminderAudioEl = document.getElementById('reminderAudioEl');
+
+function buildLedRow(){
+  const row = document.getElementById('boxLedRow');
+  row.innerHTML = '';
+  for(let i=1;i<=8;i++){
+    const w = document.createElement('div');
+    w.className = 'led-num';
+    w.innerHTML = '<span>'+i+'</span><div class="led" data-led="'+i+'"></div>';
+    row.appendChild(w);
+  }
+}
+buildLedRow();
+
+/* เสียงบี๊พสำรอง (ไม่ใช่เสียงพูดภาษาอังกฤษ) ใช้ตอนยังไม่ตั้งลิงก์ไฟล์เสียงให้ช่องนั้น */
+let _chimeCtx = null;
+function playChime(){
+  try{
+    _chimeCtx = _chimeCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const now = _chimeCtx.currentTime;
+    [880, 660].forEach((freq, i)=>{
+      const o = _chimeCtx.createOscillator();
+      const g = _chimeCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = freq;
+      g.gain.value = 0.0001;
+      o.connect(g); g.connect(_chimeCtx.destination);
+      const t0 = now + i*0.22;
+      g.gain.exponentialRampToValueAtTime(0.22, t0+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0+0.32);
+      o.start(t0); o.stop(t0+0.34);
+    });
+  }catch(e){ /* WebAudio not supported, fail silently */ }
+}
+
+function triggerSlotReminder(slot){
+  stopReminder();
+  reminderSlot = slot;
+  document.querySelectorAll('.box-slot').forEach(s => s.classList.remove('active','ringing'));
+  const slotEl = document.querySelector('.box-slot[data-slot="'+slot+'"]');
+  const ledEl = document.querySelector('.led-num .led[data-led="'+slot+'"]');
+  slotEl.classList.add('ringing');
+  ledEl.classList.add('on');
+
+  showPatientNotif('ได้เวลาทานยาช่องที่ ' + slot + ' แล้วครับ');
+
+  const url = slotAudioUrls[slot];
+  if(url){
+    reminderAudioEl.loop = true;
+    reminderAudioEl.src = url;
+    reminderAudioEl.currentTime = 0;
+    reminderAudioEl.play().catch(()=>{
+      setBoxSpeech('⚠️', 'เล่นไฟล์เสียงที่ตั้งไว้ของช่องที่ '+slot+' ไม่ได้ — ตรวจสอบลิงก์ (ใช้เสียงบี๊พแทนไปก่อน)', false);
+      startChimeFallback();
+    });
+    setBoxSpeech('🔊', 'กำลังเล่นเสียงแจ้งเตือนที่อัปโหลดไว้ (ช่องที่ '+slot+') — วนซ้ำจนกว่าจะแตะที่ช่องนี้บนกล่อง', false);
+  } else {
+    setBoxSpeech('🔔', 'ยังไม่ได้ใส่ลิงก์ไฟล์เสียงสำหรับช่องที่ '+slot+' — ใช้เสียงบี๊พแทนชั่วคราว (แตะที่ช่องนี้บนกล่องเพื่อหยุด)', false);
+    startChimeFallback();
+  }
+}
+
+function startChimeFallback(){
+  playChime();
+  chimeTimer = setInterval(playChime, 2200);
+}
+
+function stopReminder(acknowledged){
+  clearInterval(reminderTimer);
+  clearInterval(chimeTimer);
+  chimeTimer = null;
+  reminderAudioEl.pause();
+  reminderAudioEl.removeAttribute('src');
+  reminderAudioEl.loop = false;
+  document.querySelectorAll('.box-slot').forEach(s => s.classList.remove('ringing'));
+  if(reminderSlot){
+    document.querySelector('.box-slot[data-slot="'+reminderSlot+'"]').classList.add('active');
+    document.querySelector('.led-num .led[data-led="'+reminderSlot+'"]').classList.add('on');
+  }
+  if(acknowledged && reminderSlot){
+    setBoxSpeech('✅', 'ตรวจพบการเปิดฝาช่องที่ '+reminderSlot+' — รับทราบการทานยาแล้วครับ', false);
+    showPatientNotif('ทานยาช่องที่ '+reminderSlot+' แล้ว ✅');
+  } else {
+    setBoxSpeech('🔊', 'พร้อมทำงาน — ลองกดปุ่ม "ช่อง 1" ด้านล่างเพื่อจำลองเวลาทานยา', true);
+  }
+  reminderSlot = null;
+}
+
+/* จำลอง Reed Switch: แตะที่ช่องบนกล่อง = เปิดฝา (ถ้าช่องนั้นกำลังเตือนอยู่ จะหยุดเสียง + รับทราบ) */
+function openLid(slot){
+  if(reminderSlot === slot){
+    stopReminder(true);
+    return;
+  }
+  // ช่องอื่นที่ไม่ได้กำลังเตือน: toggle สถานะเฉยๆ เพื่อสาธิตการตรวจจับเปิด/ปิดฝา
+  const slotEl = document.querySelector('.box-slot[data-slot="'+slot+'"]');
+  const ledEl = document.querySelector('.led-num .led[data-led="'+slot+'"]');
+  const nowActive = slotEl.classList.toggle('active');
+  if(ledEl) ledEl.classList.toggle('on', nowActive);
+}
+
+function testReminder(){ triggerSlotReminder(1); }
+
+function setBoxSpeech(icon, text, idle){
+  document.querySelector('.box-speech .ic').textContent = icon;
+  const t = document.getElementById('boxSpeechTxt');
+  t.textContent = text;
+  t.classList.toggle('idle', !!idle);
+}
+
+function speakBoxMessage(msg){ setBoxSpeech('🔊', msg, false); speakText(msg); }
+
+/* ===================== Patient phone notification ===================== */
+function showPatientNotif(text){
+  document.getElementById('patientNotifText').textContent = text;
+  const b = document.getElementById('patientNotifBanner');
+  b.classList.add('show');
+  clearTimeout(b._t);
+  b._t = setTimeout(()=> b.classList.remove('show'), 4200);
+}
+
+/* ===================== SOS hold-to-trigger / hold-to-cancel (same button) ===================== */
+const sosBtn = document.getElementById('sosBtn');
+const sosCircle = document.getElementById('sosCircle');
+const sosCap = document.getElementById('sosCap');
+const HOLD_MS = 3000;
+let holdStart = null;
+let holdRAF = null;
+let sosFlowActive = false;
+
+function setSosFlowUI(active){
+  sosBtn.classList.toggle('flow-active', active);
+  sosCap.textContent = active ? 'กดค้างเพื่อยกเลิก' : 'ฉุกเฉิน';
+}
+
+function holdStep(){
+  if(holdStart === null) return;
+  const elapsed = performance.now() - holdStart;
+  const pct = Math.min(100, (elapsed / HOLD_MS) * 100);
+  document.getElementById('boxHoldFill').style.width = pct + '%';
+  if(pct >= 100){
+    document.getElementById('boxHoldFill').style.width = '0%';
+    sosCircle.classList.remove('holding');
+    holdStart = null;
+    if(sosFlowActive){
+      cancelSosFlow();
+    } else {
+      startSosCountdown();
+    }
+    return;
+  }
+  holdRAF = requestAnimationFrame(holdStep);
+}
+
+function onSosDown(e){
+  e.preventDefault();
+  // ไม่ block ตอน sosFlowActive แล้ว — กดปุ่มเดิมค้างซ้ำ = ยกเลิก (กล่องจริงไม่มีปุ่มอื่นโผล่ขึ้นมา)
+  holdStart = performance.now();
+  sosCircle.classList.add('holding');
+  holdRAF = requestAnimationFrame(holdStep);
+}
+function onSosUp(){
+  if(holdStart !== null){
+    holdStart = null;
+    sosCircle.classList.remove('holding');
+    cancelAnimationFrame(holdRAF);
+    document.getElementById('boxHoldFill').style.width = '0%';
+  }
+}
+sosBtn.addEventListener('mousedown', onSosDown);
+sosBtn.addEventListener('touchstart', onSosDown, {passive:false});
+['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => sosBtn.addEventListener(ev, onSosUp));
+
+/* ===================== SOS countdown + call escalation ===================== */
+let countdownTimer = null;
+let countdownVal = 8;
+let escalationTimeouts = [];
+
+function setFlowStep(idx, state){
+  // state: 'active' | 'done' | 'reset'
+  const el = document.getElementById('fstep-' + idx);
+  if(!el) return;
+  el.classList.remove('done');
+  if(state === 'done') el.classList.add('done');
+}
+
+function startSosCountdown(){
+  sosFlowActive = true;
+  setSosFlowUI(true);
+  countdownVal = 8;
+  setFlowStep(1, 'done');
+  document.getElementById('boxCountdownBanner').classList.add('show');
+  document.getElementById('boxCountdownNum').textContent = countdownVal;
+  setBoxSpeech('⏱️', 'ระบบกำลังจะโทรหาผู้ดูแล… ' + countdownVal + ' วิ (กดปุ่ม SOS ค้างเพื่อยกเลิก)', false);
+  speakText('ระบบกำลังจะโทรหาผู้ดูแล');
+
+  countdownTimer = setInterval(()=>{
+    countdownVal--;
+    document.getElementById('boxCountdownNum').textContent = countdownVal;
+    setBoxSpeech('⏱️', 'ระบบกำลังจะโทรหาผู้ดูแล… ' + countdownVal + ' วิ (กดปุ่ม SOS ค้างเพื่อยกเลิก)', false);
+    if(countdownVal <= 0){
+      clearInterval(countdownTimer);
+      setFlowStep(2, 'done');
+      document.getElementById('boxCountdownBanner').classList.remove('show');
+      beginCallEscalation();
+    }
+  }, 1000);
+}
+
+function cancelSosFlow(){
+  clearInterval(countdownTimer);
+  escalationTimeouts.forEach(t => clearTimeout(t));
+  escalationTimeouts = [];
+  sosFlowActive = false;
+  setSosFlowUI(false);
+  document.getElementById('boxCountdownBanner').classList.remove('show');
+  document.getElementById('caregiverIncomingCall').classList.remove('show');
+  document.getElementById('patientEmergencyCall').classList.remove('show');
+  window.speechSynthesis.cancel();
+  setBoxSpeech('🔊', 'ยกเลิกการขอความช่วยเหลือแล้ว', true);
+  [1,2,3,4,5,6].forEach(i => setFlowStep(i, 'reset'));
+}
+
+const caregiverNames = {1: 'คุณสมหญิง (ลูกสาว)', 2: 'คุณสมศักดิ์ (ลูกชาย)'};
+
+function setCaregiverDevice(num){
+  document.getElementById('caregiverDeviceNum').textContent = num;
+  document.getElementById('caregiverRoleTag').textContent = '📱 โทรศัพท์ผู้ดูแล — ' + caregiverNames[num] + ' (เครื่อง ' + num + ')';
+  document.getElementById('caregiverCallerName').textContent = 'CareBox — นายสมชาย';
+}
+
+function ringCaregiver(device, onNoAnswer){
+  setCaregiverDevice(device);
+  document.getElementById('caregiverCallKind').textContent = 'สายเรียกเข้า — CareBox SOS';
+  document.getElementById('caregiverRingingDots').style.display = 'flex';
+  document.getElementById('caregiverConnectedBar').style.display = 'none';
+  document.getElementById('caregiverCallActions').style.display = 'flex';
+  document.getElementById('caregiverIncomingCall').classList.add('show');
+  setBoxSpeech('📞', 'กำลังโทรหาผู้ดูแล — ' + caregiverNames[device] + ' (เครื่อง ' + device + ')', false);
+
+  // simulate ~2s of ringing with no answer unless user accepts manually
+  window._currentRingResolve = onNoAnswer;
+  window._ringTimeoutHandle = setTimeout(()=>{
+    if(!document.getElementById('caregiverIncomingCall').classList.contains('show')) return;
+    document.getElementById('caregiverIncomingCall').classList.remove('show');
+    onNoAnswer();
+  }, 2000);
+}
+
+function caregiverAccept(){
+  clearTimeout(window._ringTimeoutHandle);
+  escalationTimeouts.forEach(t => clearTimeout(t));
+  document.getElementById('caregiverRingingDots').style.display = 'none';
+  document.getElementById('caregiverCallActions').style.display = 'none';
+  document.getElementById('caregiverConnectedBar').style.display = 'block';
+  setBoxSpeech('✅', 'ผู้ดูแลรับสายแล้ว — เชื่อมต่อเรียบร้อย', true);
+  sosFlowActive = false;
+  setSosFlowUI(false);
+  setFlowStep(6, 'done');
+  setTimeout(()=>{ document.getElementById('caregiverIncomingCall').classList.remove('show'); }, 3500);
+}
+
+function caregiverDecline(){
+  clearTimeout(window._ringTimeoutHandle);
+  document.getElementById('caregiverIncomingCall').classList.remove('show');
+  if(window._currentRingResolve) window._currentRingResolve();
+}
+
+function beginCallEscalation(){
+  // sequence: CG1 -> CG2 -> CG1 -> CG2 -> (no answer) -> patient phone dials 1669
+  setFlowStep(3, 'done');
+  ringCaregiver(1, ()=>{
+    let t1 = setTimeout(()=>{
+      setFlowStep(4, 'done');
+      ringCaregiver(2, ()=>{
+        let t2 = setTimeout(()=>{
+          setFlowStep(5, 'done');
+          ringCaregiver(1, ()=>{
+            let t3 = setTimeout(()=>{
+              ringCaregiver(2, ()=>{
+                let t4 = setTimeout(()=>{
+                  triggerEmergencyCall();
+                }, 400);
+                escalationTimeouts.push(t4);
+              });
+            }, 400);
+            escalationTimeouts.push(t3);
+          });
+        }, 400);
+        escalationTimeouts.push(t2);
+      });
+    }, 400);
+    escalationTimeouts.push(t1);
+  });
+}
+
+function triggerEmergencyCall(){
+  setFlowStep(6, 'done');
+  setBoxSpeech('🚑', 'ไม่มีผู้ดูแลรับสาย — โอนสายไปหน่วยฉุกเฉิน 1669', false);
+  speakText('ไม่มีผู้ดูแลรับสาย กำลังโอนสายไปหน่วยฉุกเฉิน หนึ่งหกหกเก้า');
+  document.getElementById('patientEmergencyCall').classList.add('show');
+  document.getElementById('patientCallTimer').style.display = 'none';
+  setTimeout(()=>{
+    document.getElementById('patientCallTimer').style.display = 'block';
+  }, 1800);
+  sosFlowActive = false;
+  setSosFlowUI(false);
+}
+
+function hidePatientCall(){
+  document.getElementById('patientEmergencyCall').classList.remove('show');
+  window.speechSynthesis.cancel();
+}
+
+/* ===================== Reset ===================== */
+function resetAll(){
+  clearInterval(reminderTimer);
+  clearInterval(chimeTimer);
+  chimeTimer = null;
+  reminderAudioEl.pause();
+  reminderAudioEl.removeAttribute('src');
+  reminderSlot = null;
+  clearInterval(countdownTimer);
+  clearTimeout(window._ringTimeoutHandle);
+  escalationTimeouts.forEach(t => clearTimeout(t));
+  escalationTimeouts = [];
+  sosFlowActive = false;
+  setSosFlowUI(false);
+  window.speechSynthesis.cancel();
+
+  document.querySelectorAll('.box-slot').forEach(s => s.classList.remove('active','ringing'));
+  document.querySelectorAll('.led-num .led').forEach(l => l.classList.remove('on'));
+  document.getElementById('boxCountdownBanner').classList.remove('show');
+  document.getElementById('boxHoldFill').style.width = '0%';
+  setBoxSpeech('🔊', 'พร้อมทำงาน — ลองกดปุ่ม "ช่อง 1" ด้านล่างเพื่อจำลองเวลาทานยา', true);
+
+  document.getElementById('caregiverIncomingCall').classList.remove('show');
+  document.getElementById('patientEmergencyCall').classList.remove('show');
+  document.getElementById('patientNotifBanner').classList.remove('show');
+  setCaregiverDevice(1);
+
+  for(let i=1;i<=6;i++) setFlowStep(i, 'reset');
+}
+
+setCaregiverDevice(1);
+</script>
+</body>
+</html>
